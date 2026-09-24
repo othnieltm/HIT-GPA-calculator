@@ -1,12 +1,41 @@
 const weights = [0.15, 0.20, 0.20, 0.45];
 const yearNames = ['Year 1', 'Year 2', 'Year 3', 'Final year'];
 const firstClassTarget = 7.5;
+const storageKey = 'hit-gpa-calculator-state';
 
 const studyStatusSelect = document.querySelector('#studyStatus');
 const currentYearSelect = document.querySelector('#currentYear');
 const previousYears = document.querySelector('#previousGpas');
 const calculateButton = document.querySelector('#calculate');
 const resetButton = document.querySelector('#reset');
+
+function getSavedState() {
+  try {
+    const savedState = localStorage.getItem(storageKey);
+    return savedState ? JSON.parse(savedState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveState() {
+  const years = Array.from(document.querySelectorAll('.previous-year'), (yearBlock) =>
+    Array.from(yearBlock.querySelectorAll('.module-row'), (row) => ({
+      name: row.querySelector('.module-name').value,
+      score: row.querySelector('.previous-module-score').value
+    }))
+  );
+
+  try {
+    localStorage.setItem(storageKey, JSON.stringify({
+      studyStatus: studyStatusSelect.value,
+      currentYear: currentYearSelect.value,
+      years
+    }));
+  } catch {
+    // Storage may be unavailable in private browsing or restricted contexts.
+  }
+}
 
 function getNumber(input) {
   const value = Number.parseFloat(input.value);
@@ -44,6 +73,7 @@ function addPreviousModule(yearIndex, name = '', score = '') {
 function createPreviousYearFields() {
   const currentYear = Number(currentYearSelect.value);
   const graduate = studyStatusSelect.value === 'graduate';
+  const savedState = getSavedState();
   const yearsToShow = graduate ? 4 : currentYear - 1;
   previousYears.innerHTML = '';
 
@@ -59,8 +89,13 @@ function createPreviousYearFields() {
       <button class="button button-add-previous add-previous-module" data-year="${yearIndex}" type="button"><span aria-hidden="true">+</span> Add module</button>
     `;
     previousYears.appendChild(yearBlock);
-    addPreviousModule(yearIndex, 'Module 1');
-    addPreviousModule(yearIndex, 'Module 2');
+    const savedModules = savedState?.years?.[yearIndex];
+    if (Array.isArray(savedModules) && savedModules.length) {
+      savedModules.forEach((module) => addPreviousModule(yearIndex, module.name ?? '', module.score ?? ''));
+    } else {
+      addPreviousModule(yearIndex, 'Module 1');
+      addPreviousModule(yearIndex, 'Module 2');
+    }
   }
 }
 
@@ -106,6 +141,7 @@ function calculate() {
   document.querySelector('#currentYearSection').classList.toggle('is-hidden', graduate);
   document.querySelector('#notYetNote').classList.toggle('is-hidden', graduate);
   currentYearSelect.disabled = graduate;
+  saveState();
 
   const status = document.querySelector('#statusBadge');
   const description = document.querySelector('#currentDescription');
@@ -139,6 +175,11 @@ function calculate() {
 }
 
 function reset() {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    // Storage may be unavailable in private browsing or restricted contexts.
+  }
   studyStatusSelect.value = 'student';
   currentYearSelect.value = '1';
   createPreviousYearFields();
@@ -146,10 +187,12 @@ function reset() {
 }
 
 studyStatusSelect.addEventListener('change', () => {
+  saveState();
   createPreviousYearFields();
   calculate();
 });
 currentYearSelect.addEventListener('change', () => {
+  saveState();
   createPreviousYearFields();
   calculate();
 });
@@ -162,6 +205,14 @@ previousYears.addEventListener('click', (event) => {
   addPreviousModule(Number(button.dataset.year));
   calculate();
 });
+
+const savedState = getSavedState();
+if (savedState?.studyStatus === 'student' || savedState?.studyStatus === 'graduate') {
+  studyStatusSelect.value = savedState.studyStatus;
+}
+if (['1', '2', '3', '4'].includes(savedState?.currentYear)) {
+  currentYearSelect.value = savedState.currentYear;
+}
 
 createPreviousYearFields();
 calculate();

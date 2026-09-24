@@ -1,4 +1,4 @@
-const weights = [0.15, 0.20, 0.30, 0.45];
+const weights = [0.15, 0.20, 0.20, 0.45];
 const yearNames = ['Year 1', 'Year 2', 'Year 3', 'Final year'];
 const firstClassTarget = 7.5;
 

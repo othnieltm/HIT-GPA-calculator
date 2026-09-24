@@ -58,20 +58,19 @@
         <div class="section-heading">
           <div>
             <p class="eyebrow">Your history</p>
-            <h3>Previous annual GPAs</h3>
+            <h3>Completed-year modules</h3>
           </div>
-          <span class="muted-note">Leave future years blank</span>
+          <span class="muted-note">Enter every module, including carried courses</span>
         </div>
-        <div id="previousGpas" class="previous-gpas"></div>
+        <div id="previousGpas" class="previous-years"></div>
 
         <div class="section-heading modules-heading">
           <div>
             <p class="eyebrow">This year</p>
-            <h3>Module scores</h3>
+            <h3>Exams not yet written</h3>
           </div>
-          <button id="addModule" class="button button-dark" type="button"><span aria-hidden="true">+</span> Add module</button>
         </div>
-        <div id="modules" class="modules-list"></div>
+        <p class="not-yet-note">Your current-year module scores will appear here after you enter your results. For now, use the required GPA below to plan your target.</p>
 
         <div class="action-row">
           <button id="calculate" class="button button-primary" type="button">Calculate my GPA <span aria-hidden="true">↗</span></button>
@@ -89,20 +88,20 @@
         </div>
         <div class="result-grid">
           <div class="score-card score-card-main">
-            <span class="result-label">Current weighted GPA</span>
+            <span class="result-label">Weighted GPA so far</span>
             <strong id="currentGpa">--</strong><span class="score-unit">/ 10</span>
             <div class="meter"><span id="currentMeter"></span></div>
             <small id="currentDescription">Enter your scores to see your standing.</small>
           </div>
           <div class="score-card">
-            <span class="result-label">Current year average</span>
-            <strong id="annualGpa">--</strong><span class="score-unit">/ 10</span>
-            <small>Average of all this year's modules</small>
+            <span class="result-label">Needed this year</span>
+            <strong id="neededGpa">--</strong><span class="score-unit">/ 10</span>
+            <small id="neededDescription">Complete previous-year modules to calculate this.</small>
           </div>
           <div class="score-card need-card">
-            <span class="result-label">Needed for First Class</span>
-            <strong id="neededGpa">--</strong><span class="score-unit">/ 10</span>
-            <small id="neededDescription">Complete your current-year scores to calculate this.</small>
+            <span class="result-label">Current classification</span>
+            <strong id="classification">--</strong>
+            <small>Based on completed academic years</small>
           </div>
         </div>
         <p id="resultNote" class="result-note">First Class begins at <strong>7.5 / 10</strong>. Your classification is based on your current weighted GPA.</p>

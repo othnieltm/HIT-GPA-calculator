@@ -2,43 +2,11 @@ const weights = [0.15, 0.20, 0.30, 0.45];
 const yearNames = ['Year 1', 'Year 2', 'Year 3', 'Final year'];
 const firstClassTarget = 7.5;
 
+const studyStatusSelect = document.querySelector('#studyStatus');
 const currentYearSelect = document.querySelector('#currentYear');
-const previousGpas = document.querySelector('#previousGpas');
-const modules = document.querySelector('#modules');
+const previousYears = document.querySelector('#previousGpas');
 const calculateButton = document.querySelector('#calculate');
 const resetButton = document.querySelector('#reset');
-const addModuleButton = document.querySelector('#addModule');
-
-function createPreviousGpaFields() {
-  const currentYear = Number(currentYearSelect.value);
-  previousGpas.innerHTML = '';
-
-  for (let index = 0; index < 3; index += 1) {
-    const row = document.createElement('div');
-    row.className = 'previous-row';
-    const disabled = index >= currentYear - 1;
-    row.innerHTML = `
-      <label for="previous-${index}">${yearNames[index]} annual GPA</label>
-      <input id="previous-${index}" class="previous-gpa" type="number" min="1" max="10" step="0.1" placeholder="e.g. 6.8" ${disabled ? 'disabled' : ''}>
-    `;
-    previousGpas.appendChild(row);
-  }
-}
-
-function addModule(name = '', score = '') {
-  const row = document.createElement('div');
-  row.className = 'module-row';
-  row.innerHTML = `
-    <input class="module-name" type="text" placeholder="Module name" value="${name}" aria-label="Module name">
-    <input class="module-score" type="number" min="1" max="10" step="0.1" placeholder="Points / 10" value="${score}" aria-label="Module points out of 10">
-    <button class="remove-module" type="button" aria-label="Remove module">&times;</button>
-  `;
-  row.querySelector('.remove-module').addEventListener('click', () => {
-    row.remove();
-    calculate();
-  });
-  modules.appendChild(row);
-}
 
 function getNumber(input) {
   const value = Number.parseFloat(input.value);
@@ -57,29 +25,87 @@ function getClassification(gpa) {
   return 'Below pass';
 }
 
+function addPreviousModule(yearIndex, name = '', score = '') {
+  const moduleList = previousYears.querySelector(`.previous-modules[data-year="${yearIndex}"]`);
+  const row = document.createElement('div');
+  row.className = 'module-row';
+  row.innerHTML = `
+    <input class="module-name" type="text" placeholder="Module name" value="${name}" aria-label="Module name">
+    <input class="previous-module-score" data-year="${yearIndex}" type="number" min="1" max="10" step="0.1" placeholder="Points / 10" value="${score}" aria-label="${yearNames[yearIndex]} module points out of 10">
+    <button class="remove-module" type="button" aria-label="Remove module">&times;</button>
+  `;
+  row.querySelector('.remove-module').addEventListener('click', () => {
+    row.remove();
+    calculate();
+  });
+  moduleList.appendChild(row);
+}
+
+function createPreviousYearFields() {
+  const currentYear = Number(currentYearSelect.value);
+  const graduate = studyStatusSelect.value === 'graduate';
+  const yearsToShow = graduate ? 4 : currentYear - 1;
+  previousYears.innerHTML = '';
+
+  for (let yearIndex = 0; yearIndex < yearsToShow; yearIndex += 1) {
+    const yearBlock = document.createElement('div');
+    yearBlock.className = 'previous-year';
+    yearBlock.innerHTML = `
+      <div class="previous-year-header">
+        <h4>${yearNames[yearIndex]}</h4>
+        <span>Annual average: <strong class="annual-average" data-year="${yearIndex}">--</strong></span>
+      </div>
+      <div class="previous-modules" data-year="${yearIndex}"></div>
+      <button class="button button-add-previous add-previous-module" data-year="${yearIndex}" type="button"><span aria-hidden="true">+</span> Add module</button>
+    `;
+    previousYears.appendChild(yearBlock);
+    addPreviousModule(yearIndex, 'Module 1');
+    addPreviousModule(yearIndex, 'Module 2');
+  }
+}
+
+function getCompletedAverages(currentYear) {
+  const graduate = studyStatusSelect.value === 'graduate';
+  const yearsToRead = graduate ? 4 : currentYear - 1;
+  return Array.from({ length: yearsToRead }, (_, yearIndex) => {
+    const scores = [...document.querySelectorAll(`.previous-module-score[data-year="${yearIndex}"]`)]
+      .map(getNumber)
+      .filter((score) => score !== null);
+    return scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
+  });
+}
+
 function calculate() {
   const currentYear = Number(currentYearSelect.value);
-  const target = firstClassTarget;
-  const priorGpas = [...document.querySelectorAll('.previous-gpa')].map(getNumber);
-  const scores = [...document.querySelectorAll('.module-score')].map(getNumber).filter((score) => score !== null);
-  const annualGpa = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
-  const completed = priorGpas.slice(0, currentYear - 1);
-  const annualValues = [...completed, annualGpa];
-  const completedWeight = weights.slice(0, currentYear).reduce((sum, weight) => sum + weight, 0);
-  const currentGpa = annualValues.every((value) => value !== null)
-    ? annualValues.reduce((sum, value, index) => sum + value * weights[index], 0) / completedWeight
-    : null;
+  const graduate = studyStatusSelect.value === 'graduate';
+  const completed = getCompletedAverages(currentYear);
+  const hasAllCompletedYears = completed.length > 0 && completed.every((value) => value !== null);
+  const completedCount = graduate ? 4 : currentYear - 1;
+  const completedWeight = weights.slice(0, completedCount).reduce((sum, weight) => sum + weight, 0);
   const earnedBeforeCurrent = completed.reduce((sum, value, index) => sum + (value ?? 0) * weights[index], 0);
-  const futureWeight = weights.slice(currentYear).reduce((sum, weight) => sum + weight, 0);
-  const neededForFirst = annualGpa !== null && futureWeight > 0
-    ? (target - earnedBeforeCurrent - annualGpa * weights[currentYear - 1]) / futureWeight
+  const currentGpa = hasAllCompletedYears ? earnedBeforeCurrent / completedWeight : null;
+  const remainingWeight = weights.slice(currentYear - 1).reduce((sum, weight) => sum + weight, 0);
+  const neededForFirst = !graduate && (currentYear === 1 || hasAllCompletedYears)
+    ? (firstClassTarget - earnedBeforeCurrent) / remainingWeight
     : null;
 
-  document.querySelector('#annualGpa').textContent = formatScore(annualGpa);
+  completed.forEach((value, index) => {
+    const annualAverage = document.querySelector(`.annual-average[data-year="${index}"]`);
+    if (annualAverage) annualAverage.textContent = formatScore(value);
+  });
+
   document.querySelector('#currentGpa').textContent = formatScore(currentGpa);
-  document.querySelector('#neededGpa').textContent = neededForFirst === null ? '--' : neededForFirst <= 0 ? '0.0' : formatScore(neededForFirst);
+  document.querySelector('#neededGpa').textContent = graduate ? formatScore(firstClassTarget) : neededForFirst === null ? '--' : neededForFirst <= 0 ? '0.0' : formatScore(neededForFirst);
+  document.querySelector('#classification').textContent = currentGpa === null ? '--' : getClassification(currentGpa);
   document.querySelector('#currentMeter').style.width = `${Math.min(100, Math.max(0, (currentGpa ?? 0) * 10))}%`;
-  document.querySelector('#resultNote').innerHTML = `First Class begins at <strong>${formatScore(target)} / 10</strong>. Your classification is based on your current weighted GPA.`;
+  document.querySelector('#gpaLabel').textContent = graduate ? 'Final weighted GPA' : 'Weighted GPA so far';
+  document.querySelector('#neededLabel').textContent = graduate ? 'First Class target' : 'Needed from this year';
+  document.querySelector('#classificationDescription').textContent = graduate ? 'Based on all four completed academic years' : 'Based on completed academic years';
+  document.querySelector('#historyTitle').textContent = graduate ? 'All four years' : 'Completed-year modules';
+  document.querySelector('#historyNote').textContent = graduate ? 'Enter every module from your degree, including carried courses' : 'Enter every module, including carried courses';
+  document.querySelector('#currentYearSection').classList.toggle('is-hidden', graduate);
+  document.querySelector('#notYetNote').classList.toggle('is-hidden', graduate);
+  currentYearSelect.disabled = graduate;
 
   const status = document.querySelector('#statusBadge');
   const description = document.querySelector('#currentDescription');
@@ -88,50 +114,54 @@ function calculate() {
 
   if (currentGpa === null) {
     status.textContent = 'Awaiting scores';
-    description.textContent = 'Enter your scores to see your standing.';
-    neededDescription.textContent = 'Complete your current-year scores to calculate this.';
+    description.textContent = graduate ? 'Enter modules for all four years to see your final result.' : 'Enter completed-year modules to see your standing.';
+    neededDescription.textContent = currentYear === 1 ? 'Your current-year target is shown above.' : 'Complete previous-year modules to calculate this.';
     return;
   }
 
-  const onTrack = currentGpa >= target;
+  const onTrack = currentGpa >= firstClassTarget;
   status.textContent = getClassification(currentGpa);
   status.classList.add(onTrack ? 'on-track' : 'needs-work');
-  description.textContent = `${getClassification(currentGpa)} standing based on your completed years.`;
+  description.textContent = graduate ? `${getClassification(currentGpa)} result across your full degree.` : `${getClassification(currentGpa)} standing based on your completed years.`;
 
-  if (currentYear === 4) {
-    neededDescription.textContent = neededForFirst <= 0 ? 'You have already reached the target.' : 'The target was not reached with the entered final-year scores.';
-  } else if (neededForFirst <= 0) {
+  if (graduate) {
+    neededDescription.textContent = `First Class begins at ${formatScore(firstClassTarget)} / 10.`;
+    return;
+  }
+
+  if (neededForFirst <= 0) {
     neededDescription.textContent = 'You have already built enough points for First Class.';
   } else if (neededForFirst > 10) {
-    neededDescription.textContent = 'This target requires more than 10.0 in future years.';
+    neededDescription.textContent = 'This target requires more than 10.0 across the remaining years.';
   } else {
-    neededDescription.textContent = `Average needed across the remaining ${4 - currentYear} year${4 - currentYear === 1 ? '' : 's'}.`;
+    neededDescription.textContent = 'Average GPA needed across the current and remaining years.';
   }
 }
 
 function reset() {
+  studyStatusSelect.value = 'student';
   currentYearSelect.value = '1';
-  createPreviousGpaFields();
-  modules.innerHTML = '';
-  addModule();
-  addModule();
+  createPreviousYearFields();
   calculate();
 }
 
+studyStatusSelect.addEventListener('change', () => {
+  createPreviousYearFields();
+  calculate();
+});
 currentYearSelect.addEventListener('change', () => {
-  createPreviousGpaFields();
+  createPreviousYearFields();
   calculate();
 });
 calculateButton.addEventListener('click', calculate);
 resetButton.addEventListener('click', reset);
-addModuleButton.addEventListener('click', () => {
-  addModule();
+previousYears.addEventListener('input', calculate);
+previousYears.addEventListener('click', (event) => {
+  const button = event.target.closest('.add-previous-module');
+  if (!button) return;
+  addPreviousModule(Number(button.dataset.year));
   calculate();
 });
-modules.addEventListener('input', calculate);
-previousGpas.addEventListener('input', calculate);
 
-createPreviousGpaFields();
-addModule('Module 1');
-addModule('Module 2');
+createPreviousYearFields();
 calculate();
